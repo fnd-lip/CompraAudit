@@ -5,8 +5,8 @@ export type AuthContextData = {
   usuario: Usuario | null;
   usuarioLogado: boolean;
   carregando: boolean;
-  entrar: (dadosLogin: DadosLogin) => void;
-  cadastrar: (dadosCadastro: DadosCadastro) => void;
+  entrar: (dadosLogin: DadosLogin) => Promise<void>;
+  cadastrar: (dadosCadastro: DadosCadastro) => Promise<void>;
   sair: () => void;
 };
 

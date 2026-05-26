@@ -6,6 +6,7 @@ type RespostaAutenticacao = {
   usuario: Usuario;
 };
 
+// envia credenciais para autenticar o usuario 
 export function loginApi(dadosLogin: DadosLogin) {
   return apiFetch<RespostaAutenticacao>("/auth/login", {
     method: "POST",
@@ -13,6 +14,7 @@ export function loginApi(dadosLogin: DadosLogin) {
   });
 }
 
+// envia dados para cadastrar o usuario 
 export function cadastroApi(dadosCadastro: DadosCadastro) {
   return apiFetch<RespostaAutenticacao>("/auth/register", {
     method: "POST",
@@ -20,6 +22,7 @@ export function cadastroApi(dadosCadastro: DadosCadastro) {
   });
 }
 
+// busca os dados do usuario autenticado 
 export function buscarUsuarioAtualApi() {
   return apiFetch<Usuario>("/auth/me");
 }

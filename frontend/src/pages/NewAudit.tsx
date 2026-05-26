@@ -6,8 +6,9 @@ import { Card } from "../components/ui/Card";
 import { HashBlock } from "../components/evidencias/HashBlock";
 import { useWallet } from "../hooks/useWallet";
 import { buscarContratacaoPorIdentificador } from "../services/pncpService";
-import { gerarHashDosDados, prepararDadosParaHash } from "../services/hashService";
 import { salvarEvidencia } from "../services/evidenciasService";
+import { registrarHashOnChain } from "../services/Web3Service";
+import { ENDERECO_CONTRATO } from "../services/contracts";
 import { formatarMoeda } from "../utils/formatCurrency";
 
 export function NewAudit() {
@@ -16,11 +17,13 @@ export function NewAudit() {
 
   const [identificador, setIdentificador] = useState("");
   const [contratacao, setContratacao] = useState<Contratacao | null>(null);
-  const [hashGerado, setHashGerado] = useState("");
+  const [hashDados, setHashDados] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [registrando, setRegistrando] = useState(false);
 
+  // consulta a contratacao no backend
   async function consultarContratacao() {
-    if (!identificador) {
+    if (!identificador.trim()) {
       alert("Informe o identificador da contratação.");
       return;
     }
@@ -28,47 +31,57 @@ export function NewAudit() {
     setCarregando(true);
 
     try {
-      const dadosContratacao = await buscarContratacaoPorIdentificador(identificador);
-      setContratacao(dadosContratacao);
-      setHashGerado("");
+      const resposta = await buscarContratacaoPorIdentificador(identificador);
+
+      setContratacao(resposta.contratacao);
+      setHashDados(resposta.hashDados);
+    } catch (erro) {
+      alert(erro instanceof Error ? erro.message : "Erro ao consultar dados.");
     } finally {
       setCarregando(false);
     }
   }
 
-  async function gerarHash() {
-    if (!contratacao) return;
-
-    const dadosParaHash = prepararDadosParaHash(contratacao);
-    const novoHash = await gerarHashDosDados(dadosParaHash);
-
-    setHashGerado(novoHash);
-  }
-
+  // registra a evidencia na blockchain e salva no backend 
   async function registrarEvidencia() {
-    if (!contratacao || !hashGerado) {
-      alert("Consulte a contratação e gere o hash antes de registrar.");
+    if (!contratacao || !hashDados) {
+      alert("Consulte uma contratação antes de registrar.");
       return;
     }
 
-    if (!carteiraConectada) {
-      await conectarCarteira();
-      return;
+    setRegistrando(true);
+
+    try {
+      if (!carteiraConectada) {
+        await conectarCarteira();
+      }
+
+      const hashTransacao = await registrarHashOnChain(
+        contratacao.fonte,
+        contratacao.identificador,
+        hashDados
+      );
+
+      const evidencia = await salvarEvidencia({
+        identificador: contratacao.identificador,
+        hashDados,
+        hashTransacao,
+        enderecoContrato: ENDERECO_CONTRATO,
+        carteiraRegistradora: enderecoCarteira,
+        status: "REGISTRADA",
+        contratacao,
+      });
+
+      navegar(`/evidencias/${evidencia.id}`);
+    } catch (erro) {
+      alert(
+        erro instanceof Error
+          ? erro.message
+          : "Erro ao registrar evidência."
+      );
+    } finally {
+      setRegistrando(false);
     }
-
-    const novaEvidencia = salvarEvidencia({
-      id: crypto.randomUUID(),
-      identificador: contratacao.identificador,
-      hashDados: hashGerado,
-      hashTransacao: `0x${crypto.randomUUID().replaceAll("-", "")}`,
-      carteiraRegistradora: enderecoCarteira,
-      enderecoContrato: "Contrato Sepolia ainda não configurado",
-      dataRegistro: new Date().toISOString(),
-      status: "REGISTRADA",
-      contratacao,
-    });
-
-    navegar(`/evidencias/${novaEvidencia.id}`);
   }
 
   return (
@@ -76,7 +89,8 @@ export function NewAudit() {
       <h1 className="text-3xl font-bold text-slate-950">Nova Auditoria</h1>
 
       <p className="mt-2 text-slate-600">
-        Consulte uma contratação pública e registre uma prova de integridade.
+        Consulte uma contratação pública, registre o hash na Sepolia e salve a
+        evidência off-chain.
       </p>
 
       <Card className="mt-8">
@@ -110,18 +124,18 @@ export function NewAudit() {
             <p>Fonte: {contratacao.fonte}</p>
           </div>
 
-          <div className="mt-6 flex gap-3">
-            <Button type="button" onClick={gerarHash}>
-              Gerar Hash
-            </Button>
-
-            <Button type="button" onClick={registrarEvidencia} variante="secundario">
-              Registrar Evidência
-            </Button>
+          <div className="mt-6">
+            <HashBlock hash={hashDados} />
           </div>
 
           <div className="mt-6">
-            <HashBlock hash={hashGerado} />
+            <Button
+              type="button"
+              onClick={registrarEvidencia}
+              disabled={registrando}
+            >
+              {registrando ? "Registrando..." : "Registrar na Blockchain"}
+            </Button>
           </div>
         </Card>
       )}

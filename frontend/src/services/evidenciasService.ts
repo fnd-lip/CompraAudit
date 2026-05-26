@@ -1,41 +1,27 @@
-import type { Evidencia } from "../types/evidencia";
+import {
+  buscarEvidenciaApi,
+  criarEvidenciaApi,
+  listarEvidenciasApi,
+  verificarEvidenciaApi,
+  type CriarEvidenciaInput,
+} from "../api/evidenciasApi";
 
-const CHAVE_EVIDENCIAS = "compraaudit_evidencias";
-
-export function listarEvidencias(): Evidencia[] {
-  const dados = localStorage.getItem(CHAVE_EVIDENCIAS);
-
-  if (!dados) {
-    return [];
-  }
-
-  return JSON.parse(dados) as Evidencia[];
+// lista evidencias salvas no backend 
+export function listarEvidencias() {
+  return listarEvidenciasApi();
 }
 
-export function salvarEvidencia(evidencia: Evidencia): Evidencia {
-  const evidencias = listarEvidencias();
-  const evidenciasAtualizadas = [evidencia, ...evidencias];
-
-  localStorage.setItem(CHAVE_EVIDENCIAS, JSON.stringify(evidenciasAtualizadas));
-
-  return evidencia;
+// salva evidencia off-chain no backend 
+export function salvarEvidencia(evidencia: CriarEvidenciaInput) {
+  return criarEvidenciaApi(evidencia);
 }
 
-export function buscarEvidenciaPorId(id: string): Evidencia | null {
-  const evidencias = listarEvidencias();
-
-  return evidencias.find((evidencia) => evidencia.id === id) ?? null;
+// busca evidencia privada pelo id 
+export function buscarEvidenciaPorId(id: string) {
+  return buscarEvidenciaApi(id);
 }
 
-export function buscarEvidenciaPublica(consulta: string): Evidencia | null {
-  const evidencias = listarEvidencias();
-
-  return (
-    evidencias.find(
-      (evidencia) =>
-        evidencia.id === consulta ||
-        evidencia.identificador === consulta ||
-        evidencia.hashDados === consulta
-    ) ?? null
-  );
+// busca evidencia publica por id, identificador ou hash 
+export function buscarEvidenciaPublica(consulta: string) {
+  return verificarEvidenciaApi(consulta);
 }

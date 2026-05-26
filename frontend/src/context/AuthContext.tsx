@@ -18,16 +18,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     buscarSessaoSalva()
   );
 
-  function entrar(dadosLogin: DadosLogin) {
-    const usuarioAutenticado = autenticarUsuario(dadosLogin);
-    setUsuario(usuarioAutenticado);
+  const [carregando, setCarregando] = useState(false);
+
+  // realiza login e atualiza o usuario global
+  async function entrar(dadosLogin: DadosLogin) {
+    setCarregando(true);
+
+    try {
+      const usuarioAutenticado = await autenticarUsuario(dadosLogin);
+      setUsuario(usuarioAutenticado);
+    } finally {
+      setCarregando(false);
+    }
   }
 
-  function cadastrar(dadosCadastro: DadosCadastro) {
-    const usuarioCadastrado = cadastrarUsuario(dadosCadastro);
-    setUsuario(usuarioCadastrado);
+  // realiza cadastro e atualiza o usuario global 
+  async function cadastrar(dadosCadastro: DadosCadastro) {
+    setCarregando(true);
+
+    try {
+      const usuarioCadastrado = await cadastrarUsuario(dadosCadastro);
+      setUsuario(usuarioCadastrado);
+    } finally {
+      setCarregando(false);
+    }
   }
 
+  // encerra a sessao atual 
   function sair() {
     limparSessao();
     setUsuario(null);
@@ -37,12 +54,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     () => ({
       usuario,
       usuarioLogado: Boolean(usuario),
-      carregando: false,
+      carregando,
       entrar,
       cadastrar,
       sair,
     }),
-    [usuario]
+    [usuario, carregando]
   );
 
   return (

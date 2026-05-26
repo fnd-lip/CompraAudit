@@ -8,11 +8,27 @@ export function PublicVerification() {
   const [consulta, setConsulta] = useState("");
   const [evidencia, setEvidencia] = useState<Evidencia | null>(null);
   const [verificado, setVerificado] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
-  function verificar() {
-    const resultado = buscarEvidenciaPublica(consulta);
-    setEvidencia(resultado);
-    setVerificado(true);
+  // busca a evidencia publica no backend 
+  async function verificar() {
+    if (!consulta.trim()) {
+      alert("Informe um identificador, hash ou id da evidência.");
+      return;
+    }
+
+    setCarregando(true);
+    setVerificado(false);
+
+    try {
+      const resultado = await buscarEvidenciaPublica(consulta);
+      setEvidencia(resultado);
+    } catch {
+      setEvidencia(null);
+    } finally {
+      setVerificado(true);
+      setCarregando(false);
+    }
   }
 
   return (
@@ -35,8 +51,8 @@ export function PublicVerification() {
             placeholder="Ex: 0xabc... ou ID da contratação"
           />
 
-          <Button type="button" onClick={verificar}>
-            Verificar
+          <Button type="button" onClick={verificar} disabled={carregando}>
+            {carregando ? "Verificando..." : "Verificar"}
           </Button>
         </div>
 

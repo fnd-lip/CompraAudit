@@ -1,12 +1,39 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, FileCheck, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
+import type { Evidencia } from "../types/evidencia";
 import { Card } from "../components/ui/Card";
 import { WalletStatus } from "../components/wallet/WalletStatus";
 import { listarEvidencias } from "../services/evidenciasService";
 
 export function Dashboard() {
-  const evidencias = listarEvidencias();
+  const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
+  const [carregando, setCarregando] = useState(true);
+
+  // carrega as evidencias salvas no backend 
+  useEffect(() => {
+    async function carregarEvidencias() {
+      try {
+        const resposta = await listarEvidencias();
+        setEvidencias(resposta);
+      } catch {
+        setEvidencias([]);
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    carregarEvidencias();
+  }, []);
+
+  const totalCompatíveis = evidencias.filter(
+    (evidencia) => evidencia.status === "COMPATIVEL"
+  ).length;
+
+  const totalDivergentes = evidencias.filter(
+    (evidencia) => evidencia.status === "DIVERGENTE"
+  ).length;
 
   return (
     <div>
@@ -24,13 +51,21 @@ export function Dashboard() {
       <div className="mt-8 grid gap-5 md:grid-cols-3">
         <CardResumo
           titulo="Evidências registradas"
-          valor={String(evidencias.length)}
+          valor={carregando ? "..." : String(evidencias.length)}
           icone={<FileCheck />}
         />
 
-        <CardResumo titulo="Compatíveis" valor="0" icone={<ShieldCheck />} />
+        <CardResumo
+          titulo="Compatíveis"
+          valor={carregando ? "..." : String(totalCompatíveis)}
+          icone={<ShieldCheck />}
+        />
 
-        <CardResumo titulo="Divergentes" valor="0" icone={<AlertTriangle />} />
+        <CardResumo
+          titulo="Divergentes"
+          valor={carregando ? "..." : String(totalDivergentes)}
+          icone={<AlertTriangle />}
+        />
       </div>
 
       <Card className="mt-8">
