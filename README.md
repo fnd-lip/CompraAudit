@@ -39,5 +39,11 @@ npm install
 npx hardhat compile
 ```
 
+
+## Contrato deployado
+
+- Rede: Sepolia Testnet
+- Contrato: `0x0c25D7F879C01173C1C0F728272804331dB5a503`
+- Explorador: https://sepolia.etherscan.io/address/0x0c25D7F879C01173C1C0F728272804331dB5a503
 ## Equipe
-Adicionar integrantes aqui.
+Felipe barbosa de Lima
