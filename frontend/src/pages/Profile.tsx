@@ -1,47 +1,56 @@
-import { useNavigate } from "react-router-dom";
-import { Card } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
-import { WalletStatus } from "../components/wallet/WalletStatus";
-import { ConnectWalletButton } from "../components/wallet/ConnectWalletButton";
+import { PageContainer } from "../components/ui/PageContainer";
+import { PageHeader } from "../components/ui/PageHeader";
 import { useAuth } from "../hooks/useAuth";
+import { useWallet } from "../hooks/useWallet";
+import { PerfilUsuarioCard } from "../components/perfil/PerfilUsuarioCard";
+import { PerfilCarteiraCard } from "../components/perfil/PerfilCarteiraCard";
+
+type UsuarioBasico = {
+  nome?: string;
+  email?: string;
+};
+
+type AuthComUsuario = {
+  usuario?: UsuarioBasico | null;
+};
+
+type WalletComDesconectar = {
+  desconectarCarteira?: () => void;
+};
 
 export function Profile() {
-  const navegar = useNavigate();
-  const { usuario, sair } = useAuth();
+  const auth = useAuth();
+  const wallet = useWallet();
 
-  function sairDaConta() {
-    sair();
-    navegar("/");
-  }
+  const usuario = "usuario" in auth ? (auth as AuthComUsuario).usuario : null;
+
+  const desconectarCarteira =
+    "desconectarCarteira" in wallet
+      ? (wallet as WalletComDesconectar).desconectarCarteira
+      : undefined;
+
+  const nome = usuario?.nome || "Auditor Fiscal Felipe";
+  const email = usuario?.email || "felipeisbg@gmail.com";
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-slate-950">Perfil</h1>
+    <PageContainer className="space-y-8">
+      <PageHeader
+        titulo="Perfil do Auditor Público"
+        descricao="Gerencie sua conta, confira a carteira conectada e acompanhe os parâmetros usados nos registros on-chain."
+      />
 
-      <Card className="mt-8">
-        <p className="text-sm text-slate-600">Nome</p>
-        <p className="mt-1 font-semibold text-slate-950">{usuario?.nome}</p>
+      <div className="grid gap-8 lg:grid-cols-[340px_1fr]">
+        {/* exibe os dados principais do usuário autenticado */}
+        <PerfilUsuarioCard nome={nome} email={email} onSair={auth.sair} />
 
-        <p className="mt-5 text-sm text-slate-600">E-mail</p>
-        <p className="mt-1 font-semibold text-slate-950">{usuario?.email}</p>
-
-        <div className="mt-6">
-          <WalletStatus />
-        </div>
-
-        <div className="mt-4">
-          <ConnectWalletButton />
-        </div>
-
-        <Button
-          type="button"
-          variante="perigo"
-          className="mt-8"
-          onClick={sairDaConta}
-        >
-          Sair
-        </Button>
-      </Card>
-    </div>
+        {/* exibe os parâmetros da carteira usada nos registros */}
+        <PerfilCarteiraCard
+          carteiraConectada={wallet.carteiraConectada}
+          enderecoCarteira={wallet.enderecoCarteira}
+          onConectar={wallet.conectarCarteira}
+          onDesconectar={desconectarCarteira}
+        />
+      </div>
+    </PageContainer>
   );
 }

@@ -2,21 +2,32 @@ import type { InputHTMLAttributes } from "react";
 
 type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
+  erro?: string;
 };
 
-export function Input({ label, className = "", ...props }: InputProps) {
+export function Input({ label, erro, className = "", ...props }: InputProps) {
   return (
-    <label className="block">
+    <div>
       {label && (
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
+        <label className="mb-1.5 block font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          {/* exibe o rótulo do campo */}
           {label}
-        </span>
+        </label>
       )}
 
       <input
-        className={`mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-600 ${className}`}
         {...props}
+        className={`w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-blue-600/10 ${
+          erro ? "border-red-400" : "border-slate-200 focus:border-blue-600"
+        } ${className}`}
       />
-    </label>
+
+      {erro && (
+        <p className="mt-1 text-xs font-medium text-red-500">
+          {/* exibe a mensagem de erro do campo */}
+          {erro}
+        </p>
+      )}
+    </div>
   );
 }

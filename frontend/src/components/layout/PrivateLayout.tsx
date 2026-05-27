@@ -1,12 +1,14 @@
 import { Outlet } from "react-router-dom";
-import { Sidebar } from "./Sidebar";
+import { Header } from "./Header";
 
 export function PrivateLayout() {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Sidebar />
+    <div className="min-h-screen bg-slate-50 font-sans">
+      {/* exibe a navegação da área autenticada */}
+      <Header />
 
-      <main className="ml-72 min-h-screen px-8 py-8">
+      <main>
+        {/* exibe a rota privada atual */}
         <Outlet />
       </main>
     </div>

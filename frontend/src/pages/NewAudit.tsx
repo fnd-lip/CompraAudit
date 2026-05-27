@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Contratacao } from "../types/contratacao";
-import { Button } from "../components/ui/Button";
-import { Card } from "../components/ui/Card";
-import { HashBlock } from "../components/evidencias/HashBlock";
-import { useWallet } from "../hooks/useWallet";
+import { PageContainer } from "../components/ui/PageContainer";
+import { PageHeader } from "../components/ui/PageHeader";
 import { buscarContratacaoPorIdentificador } from "../services/pncpService";
 import { salvarEvidencia } from "../services/evidenciasService";
 import { registrarHashOnChain } from "../services/Web3Service";
 import { ENDERECO_CONTRATO } from "../services/contracts";
-import { formatarMoeda } from "../utils/formatCurrency";
+import { useWallet } from "../hooks/useWallet";
+import { PainelConsultaAuditoria } from "../components/novaAuditoria/PainelConsultaAuditoria";
+import { EtapasAuditoria } from "../components/novaAuditoria/EtapasAuditoria";
+import { EstadoConsultaAuditoria } from "../components/novaAuditoria/EstadoConsultaAuditoria";
+import { ResultadoContratacaoAuditoria } from "../components/novaAuditoria/ResultadoContratacaoAuditoria";
 
 export function NewAudit() {
   const navegar = useNavigate();
-  const { enderecoCarteira, carteiraConectada, conectarCarteira } = useWallet();
+  const { carteiraConectada, enderecoCarteira, conectarCarteira } = useWallet();
 
   const [identificador, setIdentificador] = useState("");
   const [contratacao, setContratacao] = useState<Contratacao | null>(null);
@@ -21,7 +23,6 @@ export function NewAudit() {
   const [carregando, setCarregando] = useState(false);
   const [registrando, setRegistrando] = useState(false);
 
-  // consulta a contratacao no backend
   async function consultarContratacao() {
     if (!identificador.trim()) {
       alert("Informe o identificador da contratação.");
@@ -31,7 +32,9 @@ export function NewAudit() {
     setCarregando(true);
 
     try {
-      const resposta = await buscarContratacaoPorIdentificador(identificador);
+      const resposta = await buscarContratacaoPorIdentificador(
+        identificador.trim()
+      );
 
       setContratacao(resposta.contratacao);
       setHashDados(resposta.hashDados);
@@ -42,7 +45,6 @@ export function NewAudit() {
     }
   }
 
-  // registra a evidencia na blockchain e salva no backend 
   async function registrarEvidencia() {
     if (!contratacao || !hashDados) {
       alert("Consulte uma contratação antes de registrar.");
@@ -85,60 +87,39 @@ export function NewAudit() {
   }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-slate-950">Nova Auditoria</h1>
+    <PageContainer className="space-y-8">
+      <PageHeader
+        titulo="Iniciar Nova Auditoria Criptográfica"
+        descricao="Consulte dados oficiais, gere uma impressão digital da contratação e registre a prova na blockchain."
+      />
 
-      <p className="mt-2 text-slate-600">
-        Consulte uma contratação pública, registre o hash na Sepolia e salve a
-        evidência off-chain.
-      </p>
+      <div className="grid gap-8 lg:grid-cols-[390px_1fr]">
+        <PainelConsultaAuditoria
+          identificador={identificador}
+          carregando={carregando}
+          onIdentificadorChange={setIdentificador}
+          onConsultar={consultarContratacao}
+        />
 
-      <Card className="mt-8">
-        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-          Identificador da contratação
-        </label>
-
-        <div className="mt-3 flex gap-3">
-          <input
-            value={identificador}
-            onChange={(evento) => setIdentificador(evento.target.value)}
-            className="flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
-            placeholder="Ex: PNCP-2026-0001"
+        <div className="space-y-6">
+          <EtapasAuditoria
+            temContratacao={Boolean(contratacao)}
+            temHash={Boolean(hashDados)}
+            registrando={registrando}
           />
 
-          <Button type="button" onClick={consultarContratacao}>
-            {carregando ? "Consultando..." : "Consultar"}
-          </Button>
+          {!contratacao ? (
+            <EstadoConsultaAuditoria />
+          ) : (
+            <ResultadoContratacaoAuditoria
+              contratacao={contratacao}
+              hashDados={hashDados}
+              registrando={registrando}
+              onRegistrar={registrarEvidencia}
+            />
+          )}
         </div>
-      </Card>
-
-      {contratacao && (
-        <Card className="mt-6">
-          <h2 className="text-xl font-bold">Dados da contratação</h2>
-
-          <div className="mt-4 grid gap-3 text-sm text-slate-700">
-            <p>Órgão: {contratacao.orgao}</p>
-            <p>Objeto: {contratacao.objeto}</p>
-            <p>Valor: {formatarMoeda(contratacao.valor)}</p>
-            <p>Modalidade: {contratacao.modalidade}</p>
-            <p>Fonte: {contratacao.fonte}</p>
-          </div>
-
-          <div className="mt-6">
-            <HashBlock hash={hashDados} />
-          </div>
-
-          <div className="mt-6">
-            <Button
-              type="button"
-              onClick={registrarEvidencia}
-              disabled={registrando}
-            >
-              {registrando ? "Registrando..." : "Registrar na Blockchain"}
-            </Button>
-          </div>
-        </Card>
-      )}
-    </div>
+      </div>
+    </PageContainer>
   );
 }

@@ -3,6 +3,7 @@ import {
   criarEvidenciaApi,
   listarEvidenciasApi,
   verificarEvidenciaApi,
+  verificarEvidenciaCompletaApi,
   type CriarEvidenciaInput,
 } from "../api/evidenciasApi";
 
@@ -11,7 +12,7 @@ export function listarEvidencias() {
   return listarEvidenciasApi();
 }
 
-// salva evidencia off-chain no backend 
+// salva uma evidencia off-chain no backend
 export function salvarEvidencia(evidencia: CriarEvidenciaInput) {
   return criarEvidenciaApi(evidencia);
 }
@@ -24,4 +25,9 @@ export function buscarEvidenciaPorId(id: string) {
 // busca evidencia publica por id, identificador ou hash 
 export function buscarEvidenciaPublica(consulta: string) {
   return verificarEvidenciaApi(consulta);
+}
+
+// verifica evidencia comparando hash salvo e hash atual 
+export function verificarEvidenciaCompleta(consulta: string) {
+  return verificarEvidenciaCompletaApi(consulta);
 }

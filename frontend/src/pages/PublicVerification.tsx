@@ -1,19 +1,23 @@
 import { useState } from "react";
-import type { Evidencia } from "../types/evidencia";
-import { Button } from "../components/ui/Button";
-import { VerificationResult } from "../components/evidencias/VerificationResult";
-import { buscarEvidenciaPublica } from "../services/evidenciasService";
+import type { ResultadoVerificacaoPublica } from "../types/evidencia";
+import { PageContainer } from "../components/ui/PageContainer";
+import { PageHeader } from "../components/ui/PageHeader";
+import { verificarEvidenciaCompleta } from "../services/evidenciasService";
+import { PainelBuscaVerificacao } from "../components/verificacaoPublica/PainelBuscaVerificacao";
+import { BannerResultadoVerificacao } from "../components/verificacaoPublica/BannerResultadoVerificacao";
+import { CardsComparacaoVerificacao } from "../components/verificacaoPublica/CardsComparacaoVerificacao";
+import { ExplicacaoVerificacao } from "../components/verificacaoPublica/ExplicacaoVerificacao";
 
 export function PublicVerification() {
   const [consulta, setConsulta] = useState("");
-  const [evidencia, setEvidencia] = useState<Evidencia | null>(null);
+  const [resultado, setResultado] =
+    useState<ResultadoVerificacaoPublica | null>(null);
   const [verificado, setVerificado] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
-  // busca a evidencia publica no backend 
   async function verificar() {
     if (!consulta.trim()) {
-      alert("Informe um identificador, hash ou id da evidência.");
+      alert("Informe um identificador, ID ou hash da evidência.");
       return;
     }
 
@@ -21,10 +25,10 @@ export function PublicVerification() {
     setVerificado(false);
 
     try {
-      const resultado = await buscarEvidenciaPublica(consulta);
-      setEvidencia(resultado);
+      const resposta = await verificarEvidenciaCompleta(consulta.trim());
+      setResultado(resposta);
     } catch {
-      setEvidencia(null);
+      setResultado(null);
     } finally {
       setVerificado(true);
       setCarregando(false);
@@ -32,36 +36,52 @@ export function PublicVerification() {
   }
 
   return (
-    <section className="mx-auto max-w-3xl px-6 py-16">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-950">
-          Verificar evidência pública
-        </h1>
+    <PageContainer className="space-y-8">
+      <PageHeader
+        titulo="Visão Geral e Confronto Criptográfico"
+        descricao="Consulte uma evidência pública e compare o registro salvo, a prova on-chain e os dados atuais da fonte pública."
+      />
 
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Informe o identificador da contratação ou o hash da evidência para
-          verificar se o registro continua compatível com a prova on-chain.
-        </p>
+      <PainelBuscaVerificacao
+        consulta={consulta}
+        carregando={carregando}
+        onConsultaChange={setConsulta}
+        onVerificar={verificar}
+      />
 
-        <div className="mt-8 flex gap-3">
-          <input
-            value={consulta}
-            onChange={(evento) => setConsulta(evento.target.value)}
-            className="flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-600"
-            placeholder="Ex: 0xabc... ou ID da contratação"
-          />
+      <div className="rounded-2xl bg-slate-950 p-8 text-white shadow-sm">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="mb-3 inline-flex rounded bg-blue-500/10 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-blue-300">
+              confronto criptográfico
+            </p>
 
-          <Button type="button" onClick={verificar} disabled={carregando}>
-            {carregando ? "Verificando..." : "Verificar"}
-          </Button>
-        </div>
+            <h2 className="font-display text-xl font-extrabold">
+              Mecanismo de Provas: Off-Chain vs On-Chain
+            </h2>
 
-        {verificado && (
-          <div className="mt-6">
-            <VerificationResult evidencia={evidencia} />
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
+              A aplicação compara os dados salvos fora da blockchain com o hash
+              registrado on-chain e com os dados consultados novamente na fonte
+              pública.
+            </p>
           </div>
-        )}
+
+          <div className="rounded-xl bg-emerald-500 px-5 py-3 font-bold text-white">
+            {/* exibe o modo real da verificação */}
+            Verificação real ativa
+          </div>
+        </div>
       </div>
-    </section>
+
+      <BannerResultadoVerificacao
+        resultado={resultado}
+        verificado={verificado}
+      />
+
+      {resultado && <CardsComparacaoVerificacao resultado={resultado} />}
+
+      <ExplicacaoVerificacao />
+    </PageContainer>
   );
 }

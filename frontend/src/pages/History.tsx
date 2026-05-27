@@ -1,15 +1,23 @@
-import { useEffect, useState } from "react";
-import { EvidenceTable } from "../components/evidencias/EvidenceTable";
-import { listarEvidencias } from "../services/evidenciasService";
+import { useEffect, useMemo, useState } from "react";
 import type { Evidencia } from "../types/evidencia";
+import { PageContainer } from "../components/ui/PageContainer";
+import { PageHeader } from "../components/ui/PageHeader";
+import { listarEvidencias } from "../services/evidenciasService";
+import { FiltrosHistorico } from "../components/historico/FiltrosHistorico";
+import { ResumoHistorico } from "../components/historico/ResumoHistorico";
+import { TabelaHistorico } from "../components/historico/TabelaHistorico";
 
 export function History() {
   const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [filtroIdentificador, setFiltroIdentificador] = useState("");
+  const [filtroOrgao, setFiltroOrgao] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
 
-  // carrega o historico do usuario autenticado 
   useEffect(() => {
-    async function carregarHistorico() {
+    async function carregarEvidencias() {
+      setCarregando(true);
+
       try {
         const resposta = await listarEvidencias();
         setEvidencias(resposta);
@@ -20,26 +28,61 @@ export function History() {
       }
     }
 
-    carregarHistorico();
+    carregarEvidencias();
   }, []);
 
+  const evidenciasFiltradas = useMemo(() => {
+    return evidencias.filter((evidencia) => {
+      const identificadorConfere = evidencia.identificador
+        .toLowerCase()
+        .includes(filtroIdentificador.toLowerCase());
+
+      const orgaoConfere = (evidencia.contratacao?.orgao || "")
+        .toLowerCase()
+        .includes(filtroOrgao.toLowerCase());
+
+      const statusConfere = filtroStatus
+        ? evidencia.status === filtroStatus
+        : true;
+
+      return identificadorConfere && orgaoConfere && statusConfere;
+    });
+  }, [evidencias, filtroIdentificador, filtroOrgao, filtroStatus]);
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-slate-950">Histórico</h1>
+    <PageContainer className="space-y-8">
+      <PageHeader
+        titulo="Histórico Geral de Auditorias"
+        descricao="Consulte, filtre e inspecione as evidências criptográficas registradas pela sua conta."
+      />
 
-      <p className="mt-2 text-slate-600">
-        Visualize as evidências registradas pela sua conta.
-      </p>
+      <ResumoHistorico evidencias={evidencias} />
 
-      <div className="mt-8">
+      <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
+        <FiltrosHistorico
+          filtroIdentificador={filtroIdentificador}
+          filtroOrgao={filtroOrgao}
+          filtroStatus={filtroStatus}
+          onFiltroIdentificadorChange={setFiltroIdentificador}
+          onFiltroOrgaoChange={setFiltroOrgao}
+          onFiltroStatusChange={setFiltroStatus}
+        />
+
         {carregando ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-slate-500">
-            Carregando evidências...
+          <div className="flex min-h-90 items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div>
+              {/* exibe carregamento do histórico */}
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+
+              <p className="mt-4 font-mono text-xs font-bold uppercase tracking-widest text-slate-400">
+                carregando histórico...
+              </p>
+            </div>
           </div>
         ) : (
-          <EvidenceTable evidencias={evidencias} />
+          <TabelaHistorico evidencias={evidenciasFiltradas} />
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }
