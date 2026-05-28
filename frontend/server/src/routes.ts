@@ -1,119 +1,181 @@
-import { Router } from "express";
-import crypto from "node:crypto";
+import { Router, type Request } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { evidencias, usuarios } from "./data/bancoMemoria";
+import { Prisma } from "./generated/prisma/client";
+import type { Evidencia as EvidenciaBanco } from "./generated/prisma/client";
+import { prisma } from "./lib/prisma";
 import {
   authMiddleware,
-  type RequestAutenticado,
+  type RequestAutenticada,
 } from "./middlewares/authMiddleware";
 import { buscarContratacaoPncp } from "./services/pncpService";
 import { gerarHash, prepararDadosParaHash } from "./services/hashService";
-import type { Evidencia, UsuarioPublico } from "./types";
 
-export const routes = Router();
+const routes = Router();
 
-/* remove dados sensiveis antes de retornar o usuario */
-function limparUsuario(usuario: {
-  id: string;
-  nome: string;
-  email: string;
-  enderecoCarteira?: string;
-}): UsuarioPublico {
-  return {
-    id: usuario.id,
-    nome: usuario.nome,
-    email: usuario.email,
-    enderecoCarteira: usuario.enderecoCarteira,
-  };
-}
+type CriarEvidenciaBody = {
+  identificador?: string;
+  hashDados?: string;
+  hashTransacao?: string;
+  enderecoContrato?: string;
+  carteiraRegistradora?: string;
+  status?: "PENDENTE" | "REGISTRADA" | "COMPATIVEL" | "DIVERGENTE";
+  contratacao?: unknown;
+};
 
-/* cria token para sessoes do mvp */
-function criarToken(usuarioId: string): string {
+function gerarToken(usuarioId: string) {
   return jwt.sign(
     { sub: usuarioId },
     process.env.JWT_SECRET || "compraaudit_dev_secret",
-    { expiresIn: "1d" }
+    { expiresIn: "7d" }
   );
 }
 
+function converterJson(valor: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(valor)) as Prisma.InputJsonValue;
+}
+
+function formatarEvidencia(evidencia: EvidenciaBanco) {
+  return {
+    ...evidencia,
+    dataRegistro: evidencia.dataRegistro.toISOString(),
+    contratacao: evidencia.contratacao,
+  };
+}
+
+function obterUsuarioId(request: Request) {
+  return (request as RequestAutenticada).usuarioId;
+}
+
+function obterParametro(valor: string | string[] | undefined) {
+  /* garante que parâmetros de rota sempre sejam tratados como string */
+  if (Array.isArray(valor)) {
+    return valor[0] ?? "";
+  }
+
+  return valor ?? "";
+}
+
+routes.get("/health", (_request, response) => {
+  response.json({
+    status: "ok",
+    service: "CompraAudit API",
+  });
+});
+
 routes.post("/auth/register", async (request, response) => {
-  const { nome, email, senha, enderecoCarteira } = request.body;
+  const { nome, email, senha } = request.body as {
+    nome?: string;
+    email?: string;
+    senha?: string;
+  };
 
   if (!nome || !email || !senha) {
-    response.status(400).json({ mensagem: "Dados obrigatorios ausentes." });
+    response.status(400).json({ mensagem: "Informe nome, email e senha." });
     return;
   }
 
-  const usuarioExiste = usuarios.some((usuario) => usuario.email === email);
+  const usuarioExistente = await prisma.usuario.findUnique({
+    where: { email },
+  });
 
-  if (usuarioExiste) {
-    response.status(409).json({ mensagem: "E-mail ja cadastrado." });
+  if (usuarioExistente) {
+    response.status(409).json({ mensagem: "Email já cadastrado." });
     return;
   }
 
   const senhaHash = await bcrypt.hash(senha, 8);
 
-  const usuario = {
-    id: crypto.randomUUID(),
-    nome,
-    email,
-    senhaHash,
-    enderecoCarteira,
-  };
+  const usuario = await prisma.usuario.create({
+    data: {
+      nome,
+      email,
+      senhaHash,
+    },
+  });
 
-  usuarios.push(usuario);
-
-  const token = criarToken(usuario.id);
+  const token = gerarToken(usuario.id);
 
   response.status(201).json({
     token,
-    usuario: limparUsuario(usuario),
+    usuario: {
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+    },
   });
 });
 
 routes.post("/auth/login", async (request, response) => {
-  const { email, senha } = request.body;
+  const { email, senha } = request.body as {
+    email?: string;
+    senha?: string;
+  };
 
-  const usuario = usuarios.find((item) => item.email === email);
+  if (!email || !senha) {
+    response.status(400).json({ mensagem: "Informe email e senha." });
+    return;
+  }
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { email },
+  });
 
   if (!usuario) {
-    response.status(401).json({ mensagem: "Credenciais invalidas." });
+    response.status(401).json({ mensagem: "Credenciais inválidas." });
     return;
   }
 
-  const senhaValida = await bcrypt.compare(senha, usuario.senhaHash);
+  const senhaConfere = await bcrypt.compare(senha, usuario.senhaHash);
 
-  if (!senhaValida) {
-    response.status(401).json({ mensagem: "Credenciais invalidas." });
+  if (!senhaConfere) {
+    response.status(401).json({ mensagem: "Credenciais inválidas." });
     return;
   }
 
-  const token = criarToken(usuario.id);
+  const token = gerarToken(usuario.id);
 
   response.json({
     token,
-    usuario: limparUsuario(usuario),
+    usuario: {
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+    },
   });
 });
 
-routes.get(
-  "/auth/me",
-  authMiddleware,
-  (request: RequestAutenticado, response) => {
-    const usuario = usuarios.find((item) => item.id === request.usuarioId);
+routes.get("/auth/me", authMiddleware, async (request, response) => {
+  const usuarioId = obterUsuarioId(request);
 
-    if (!usuario) {
-      response.status(404).json({ mensagem: "Usuario nao encontrado." });
-      return;
-    }
-
-    response.json(limparUsuario(usuario));
+  if (!usuarioId) {
+    response.status(401).json({ mensagem: "Usuário não autenticado." });
+    return;
   }
-);
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: usuarioId },
+  });
+
+  if (!usuario) {
+    response.status(404).json({ mensagem: "Usuário não encontrado." });
+    return;
+  }
+
+  response.json({
+    id: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email,
+  });
+});
 
 routes.get("/pncp/contratacoes/:identificador", async (request, response) => {
-  const { identificador } = request.params;
+  const identificador = obterParametro(request.params.identificador);
+
+  if (!identificador) {
+    response.status(400).json({ mensagem: "Identificador não informado." });
+    return;
+  }
 
   const contratacao = await buscarContratacaoPncp(identificador);
   const dadosParaHash = prepararDadosParaHash(contratacao);
@@ -121,79 +183,173 @@ routes.get("/pncp/contratacoes/:identificador", async (request, response) => {
 
   response.json({
     contratacao,
-    hashDados,
     dadosParaHash,
+    hashDados,
   });
 });
 
-routes.post(
-  "/evidencias",
-  authMiddleware,
-  (request: RequestAutenticado, response) => {
-    const evidencia: Evidencia = {
-      id: crypto.randomUUID(),
-      usuarioId: request.usuarioId || "",
-      identificador: request.body.identificador,
-      hashDados: request.body.hashDados,
-      hashTransacao: request.body.hashTransacao,
-      enderecoContrato: request.body.enderecoContrato,
-      carteiraRegistradora: request.body.carteiraRegistradora,
-      dataRegistro: request.body.dataRegistro || new Date().toISOString(),
-      status: request.body.status || "REGISTRADA",
-      contratacao: request.body.contratacao,
-    };
+routes.post("/evidencias", authMiddleware, async (request, response) => {
+  const usuarioId = obterUsuarioId(request);
 
-    evidencias.unshift(evidencia);
-
-    response.status(201).json(evidencia);
-  }
-);
-
-routes.get(
-  "/evidencias",
-  authMiddleware,
-  (request: RequestAutenticado, response) => {
-    const minhasEvidencias = evidencias.filter(
-      (evidencia) => evidencia.usuarioId === request.usuarioId
-    );
-
-    response.json(minhasEvidencias);
-  }
-);
-
-routes.get(
-  "/evidencias/:id",
-  authMiddleware,
-  (request: RequestAutenticado, response) => {
-    const evidencia = evidencias.find(
-      (item) =>
-        item.id === request.params.id &&
-        item.usuarioId === request.usuarioId
-    );
-
-    if (!evidencia) {
-      response.status(404).json({ mensagem: "Evidencia nao encontrada." });
-      return;
-    }
-
-    response.json(evidencia);
-  }
-);
-
-routes.get("/public/evidencias/:consulta", (request, response) => {
-  const { consulta } = request.params;
-
-  const evidencia = evidencias.find(
-    (item) =>
-      item.id === consulta ||
-      item.identificador === consulta ||
-      item.hashDados === consulta
-  );
-
-  if (!evidencia) {
-    response.status(404).json({ mensagem: "Evidencia nao encontrada." });
+  if (!usuarioId) {
+    response.status(401).json({ mensagem: "Usuário não autenticado." });
     return;
   }
 
-  response.json(evidencia);
+  const {
+    identificador,
+    hashDados,
+    hashTransacao,
+    enderecoContrato,
+    carteiraRegistradora,
+    status,
+    contratacao,
+  } = request.body as CriarEvidenciaBody;
+
+  if (!identificador || !hashDados || !contratacao) {
+    response.status(400).json({
+      mensagem: "Informe identificador, hashDados e contratacao.",
+    });
+    return;
+  }
+
+  const evidencia = await prisma.evidencia.create({
+    data: {
+      usuarioId,
+      identificador,
+      hashDados,
+      hashTransacao,
+      enderecoContrato,
+      carteiraRegistradora,
+      status: status ?? "REGISTRADA",
+      contratacao: converterJson(contratacao),
+    },
+  });
+
+  response.status(201).json(formatarEvidencia(evidencia));
 });
+
+routes.get("/evidencias", authMiddleware, async (request, response) => {
+  const usuarioId = obterUsuarioId(request);
+
+  if (!usuarioId) {
+    response.status(401).json({ mensagem: "Usuário não autenticado." });
+    return;
+  }
+
+  const evidencias = await prisma.evidencia.findMany({
+    where: { usuarioId },
+    orderBy: { dataRegistro: "desc" },
+  });
+
+  response.json(evidencias.map(formatarEvidencia));
+});
+
+routes.get("/evidencias/:id", authMiddleware, async (request, response) => {
+  const usuarioId = obterUsuarioId(request);
+  const id = obterParametro(request.params.id);
+
+  if (!usuarioId) {
+    response.status(401).json({ mensagem: "Usuário não autenticado." });
+    return;
+  }
+
+  if (!id) {
+    response.status(400).json({ mensagem: "ID da evidência não informado." });
+    return;
+  }
+
+  const evidencia = await prisma.evidencia.findFirst({
+    where: {
+      id,
+      usuarioId,
+    },
+  });
+
+  if (!evidencia) {
+    response.status(404).json({ mensagem: "Evidência não encontrada." });
+    return;
+  }
+
+  response.json(formatarEvidencia(evidencia));
+});
+
+routes.get("/public/evidencias/:consulta", async (request, response) => {
+  const consulta = obterParametro(request.params.consulta);
+
+  if (!consulta) {
+    response.status(400).json({ mensagem: "Consulta não informada." });
+    return;
+  }
+
+  const evidencia = await prisma.evidencia.findFirst({
+    where: {
+      OR: [
+        { id: consulta },
+        { identificador: consulta },
+        { hashDados: consulta },
+      ],
+    },
+    orderBy: { dataRegistro: "desc" },
+  });
+
+  if (!evidencia) {
+    response.status(404).json({ mensagem: "Evidência não encontrada." });
+    return;
+  }
+
+  response.json(formatarEvidencia(evidencia));
+});
+
+routes.get("/public/verificacao/:consulta", async (request, response) => {
+  const consulta = obterParametro(request.params.consulta);
+
+  if (!consulta) {
+    response.status(400).json({ mensagem: "Consulta não informada." });
+    return;
+  }
+
+  const evidencia = await prisma.evidencia.findFirst({
+    where: {
+      OR: [
+        { id: consulta },
+        { identificador: consulta },
+        { hashDados: consulta },
+      ],
+    },
+    orderBy: { dataRegistro: "desc" },
+  });
+
+  if (!evidencia) {
+    response.status(404).json({ mensagem: "Evidência não encontrada." });
+    return;
+  }
+
+  /* consulta novamente os dados atuais da fonte pública */
+  const dadosAtuais = await buscarContratacaoPncp(evidencia.identificador);
+
+  /* calcula o hash atual usando os mesmos campos normalizados */
+  const dadosParaHashAtual = prepararDadosParaHash(dadosAtuais);
+  const hashAtual = gerarHash(dadosParaHashAtual);
+
+  /* compara o hash salvo com o hash calculado agora */
+  const status =
+    hashAtual === evidencia.hashDados ? "COMPATIVEL" : "DIVERGENTE";
+
+  const mensagem =
+    status === "COMPATIVEL"
+      ? "Os dados atuais continuam compatíveis com a evidência registrada."
+      : "Foi detectada divergência entre os dados atuais e a evidência registrada.";
+
+  response.json({
+    status,
+    mensagem,
+    evidencia: formatarEvidencia(evidencia),
+    hashSalvo: evidencia.hashDados,
+    hashAtual,
+    dadosAtuais,
+    dadosParaHashAtual,
+  });
+});
+
+export { routes };

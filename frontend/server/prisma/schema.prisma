@@ -1,0 +1,47 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StatusEvidencia {
+  PENDENTE
+  REGISTRADA
+  COMPATIVEL
+  DIVERGENTE
+}
+
+model Usuario {
+  id        String      @id @default(uuid())
+  nome      String
+  email     String      @unique
+  senhaHash String
+  criadoEm  DateTime    @default(now())
+  evidencias Evidencia[]
+
+  @@map("usuarios")
+}
+
+model Evidencia {
+  id                   String           @id @default(uuid())
+  usuarioId            String
+  identificador         String
+  hashDados             String
+  hashTransacao         String?
+  enderecoContrato      String?
+  carteiraRegistradora  String?
+  dataRegistro          DateTime         @default(now())
+  status                StatusEvidencia  @default(REGISTRADA)
+  contratacao           Json
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([identificador])
+  @@index([hashDados])
+  @@map("evidencias")
+}

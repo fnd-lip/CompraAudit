@@ -1,34 +1,39 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
-export type RequestAutenticado = Request & {
+type TokenPayload = {
+  sub: string;
+};
+
+export type RequestAutenticada = Request & {
   usuarioId?: string;
 };
 
-/* valida o token jwt enviado pelo frontend */
 export function authMiddleware(
-  request: RequestAutenticado,
+  request: Request,
   response: Response,
   next: NextFunction
 ) {
   const authHeader = request.headers.authorization;
 
   if (!authHeader) {
-    response.status(401).json({ mensagem: "Token nao informado." });
+    response.status(401).json({ mensagem: "Token não informado." });
     return;
   }
 
   const [, token] = authHeader.split(" ");
 
   try {
-    const payload = jwt.verify(
+    const dados = jwt.verify(
       token,
       process.env.JWT_SECRET || "compraaudit_dev_secret"
-    ) as { sub: string };
+    ) as TokenPayload;
 
-    request.usuarioId = payload.sub;
+    /* salva o id do usuário autenticado na requisição */
+    (request as RequestAutenticada).usuarioId = dados.sub;
+
     next();
   } catch {
-    response.status(401).json({ mensagem: "Token invalido." });
+    response.status(401).json({ mensagem: "Token inválido." });
   }
 }
