@@ -35,10 +35,6 @@ type AuthComUsuario = {
   usuario?: UsuarioBasico | null;
 };
 
-type WalletComDesconectar = {
-  desconectarCarteira?: () => void;
-};
-
 function classeLink({ isActive }: { isActive: boolean }) {
   return `rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
     isActive
@@ -54,22 +50,14 @@ export function Header() {
   const auth = useAuth();
   const wallet = useWallet();
 
-  const usuario =
-    "usuario" in auth ? (auth as AuthComUsuario).usuario : null;
-
-  const desconectarCarteira =
-    "desconectarCarteira" in wallet
-      ? (wallet as WalletComDesconectar).desconectarCarteira
-      : undefined;
+  const usuario = "usuario" in auth ? (auth as AuthComUsuario).usuario : null;
 
   const nome = usuario?.nome || "Auditor Fiscal Felipe";
   const email = usuario?.email || "felipeisbg@gmail.com";
   const links = auth.usuarioLogado ? linksPrivados : linksPublicos;
 
   async function clicarCarteira() {
-    if (!wallet.carteiraConectada) {
-      await wallet.conectarCarteira();
-    }
+    await wallet.conectarCarteira();
   }
 
   async function trocarCarteira() {
@@ -264,11 +252,11 @@ export function Header() {
 
                       <button
                         type="button"
-                        onClick={desconectarCarteira}
-                        disabled={!desconectarCarteira || !wallet.carteiraConectada}
+                        onClick={wallet.desconectarCarteira}
+                        disabled={!wallet.carteiraConectada}
                         className="flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {/* desconecta a carteira quando disponível */}
+                        {/* desconecta a carteira no estado local da aplicação */}
                         Desconectar Carteira
                       </button>
 

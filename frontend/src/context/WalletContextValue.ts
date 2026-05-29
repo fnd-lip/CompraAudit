@@ -1,10 +1,11 @@
 import { createContext } from "react";
 
 export type WalletContextData = {
-  enderecoCarteira: string;
   carteiraConectada: boolean;
+  enderecoCarteira: string;
   conectando: boolean;
   conectarCarteira: () => Promise<void>;
+  desconectarCarteira: () => Promise<void>;
 };
 
 export const WalletContext = createContext<WalletContextData | null>(null);
