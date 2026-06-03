@@ -1,25 +1,24 @@
 import { Search } from "lucide-react";
 import { Button } from "../ui/Button";
+import { SugestoesAuditoria } from "./SugestoesAuditoria";
+import type { SugestaoAuditoria } from "../../api/pncpApi";
 
 type PainelConsultaAuditoriaProps = {
   identificador: string;
   carregando: boolean;
+  identificadorRegistrado?: string;
   onIdentificadorChange: (valor: string) => void;
   onConsultar: () => void;
+  onSelecionarSugestao: (sugestao: SugestaoAuditoria) => void;
 };
-
-const atalhos = [
-  "PNCP-2026-0001",
-  "PNCP-2026-0002",
-  "PNCP-2026-0003",
-  "PNCP-2026-0004",
-];
 
 export function PainelConsultaAuditoria({
   identificador,
   carregando,
+  identificadorRegistrado,
   onIdentificadorChange,
   onConsultar,
+  onSelecionarSugestao,
 }: PainelConsultaAuditoriaProps) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -40,7 +39,7 @@ export function PainelConsultaAuditoria({
           <input
             value={identificador}
             onChange={(evento) => onIdentificadorChange(evento.target.value)}
-            placeholder="Ex: PNCP-2026-0001"
+            placeholder="Ex: 10377679000196-1-000087/2026"
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-600/10"
           />
         </div>
@@ -64,24 +63,11 @@ export function PainelConsultaAuditoria({
           {carregando ? "Consultando..." : "Consultar Dados Oficiais"}
         </Button>
 
-        <div className="border-t border-slate-100 pt-5">
-          <p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            atalhos rápidos de teste
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            {atalhos.map((atalho) => (
-              <button
-                key={atalho}
-                type="button"
-                onClick={() => onIdentificadorChange(atalho)}
-                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs font-semibold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-              >
-                {atalho}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* exibe sugestões preventivas baseadas em gatilhos de risco */}
+        <SugestoesAuditoria
+          onSelecionar={onSelecionarSugestao}
+          identificadorRegistrado={identificadorRegistrado}
+        />
       </div>
     </div>
   );
