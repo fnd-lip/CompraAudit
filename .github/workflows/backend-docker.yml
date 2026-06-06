@@ -36,3 +36,11 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/compraaudit-backend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/compraaudit-backend:${{ github.sha }}
+      - name: Trigger Render deploy
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            echo "RENDER_DEPLOY_HOOK não configurado"
+            exit 1
+          fi
+
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
