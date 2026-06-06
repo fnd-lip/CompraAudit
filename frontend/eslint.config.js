@@ -10,20 +10,14 @@ export default defineConfig([
     "dist",
     "dist/**",
 
-    "server/dist",
-    "server/dist/**",
+    "server",
+    "server/**",
 
-    "server/generated",
-    "server/generated/**",
-
-    "server/src/generated",
-    "server/src/generated/**",
-
-    "server/node_modules",
-    "server/node_modules/**",
+    "node_modules",
+    "node_modules/**",
   ]),
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}"],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
