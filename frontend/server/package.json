@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "tsx src/server.ts",
     "test": "echo \"sem testes configurados para o backend\" && exit 0"
   },
   "keywords": [],
