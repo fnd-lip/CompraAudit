@@ -31,6 +31,14 @@ function normalizarIdentificador(identificador: string): string {
   return identificador.trim();
 }
 
+// junta partes de texto garantindo espaço entre elas
+function juntarTexto(...partes: string[]): string {
+  return partes
+    .map((parte) => parte.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 // cria a justificativa exibida no feed de sugestões
 function criarMotivoRisco(
   contratacao: Contratacao,
@@ -41,7 +49,12 @@ function criarMotivoRisco(
     currency: "BRL",
   }).format(valorMinimo);
 
-  return `${contratacao.modalidade} acima de ${valorFormatado} ainda sem evidência criptográfica.`;
+  return juntarTexto(
+    contratacao.modalidade,
+    "acima de",
+    valorFormatado,
+    "ainda sem evidência criptográfica.",
+  );
 }
 
 // verifica se a modalidade indica contratação direta relevante para auditoria
