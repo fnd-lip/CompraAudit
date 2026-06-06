@@ -34,5 +34,5 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            felipebarbosadelima/compraaudit-backend:latest
-            felipebarbosadelima/compraaudit-backend:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/compraaudit-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/compraaudit-backend:${{ github.sha }}
