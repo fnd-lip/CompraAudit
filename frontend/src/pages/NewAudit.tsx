@@ -28,8 +28,13 @@ export function NewAudit() {
   const [carregando, setCarregando] = useState(false);
   const [registrando, setRegistrando] = useState(false);
 
-  async function consultarContratacao(identificadorInformado = identificador) {
-    const identificadorConsulta = identificadorInformado.trim();
+  async function consultarContratacao(identificadorInformado?: string) {
+    const identificadorBase =
+      typeof identificadorInformado === "string"
+        ? identificadorInformado
+        : identificador;
+
+    const identificadorConsulta = identificadorBase.trim();
 
     if (!identificadorConsulta) {
       alert("Informe o identificador da contratação.");
@@ -136,7 +141,7 @@ export function NewAudit() {
           carregando={carregando}
           identificadorRegistrado={identificadorRegistrado}
           onIdentificadorChange={setIdentificador}
-          onConsultar={consultarContratacao}
+          onConsultar={() => consultarContratacao()}
           onSelecionarSugestao={selecionarSugestaoAuditoria}
         />
 

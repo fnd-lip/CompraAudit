@@ -56,7 +56,7 @@ export function PainelConsultaAuditoria({
 
         <Button
           type="button"
-          onClick={onConsultar}
+          onClick={() => onConsultar()}
           disabled={carregando}
           className="w-full"
         >
