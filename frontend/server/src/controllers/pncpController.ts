@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
 import { buscarContratacaoPncp } from "../services/pncpService";
-import { gerarHash, prepararDadosParaHash } from "../services/hashService";
+import { gerarHash } from "../services/hashService";
 import { obterParametro } from "../utils/requestUtils";
 import type { Contratacao } from "../types";
 
-// lê o identificador vindo por parâmetro de rota ou por query string 
+// lê o identificador vindo por parâmetro de rota ou por query string
 function obterIdentificadorConsulta(request: Request): string {
   const identificadorParametro = obterParametro(request.params.identificador);
 
@@ -28,10 +28,61 @@ function obterIdentificadorConsulta(request: Request): string {
   return "";
 }
 
-// consulta a contratação no PNCP, normaliza os dados e gera o hash 
+// melhora textos de exibição sem alterar datas e identificadores
+function normalizarTextoExibicao(texto: string): string {
+  return texto
+    .replace(/\s+/g, " ")
+    .replace(/para\s*fornecimento/gi, "para fornecimento")
+    .replace(/,([^\s])/g, ", $1")
+    .replace(/\.([^\s])/g, ". $1")
+    .replace(/;([^\s])/g, "; $1")
+    .replace(/([a-záéíóúàâêôãõç])([A-ZÁÉÍÓÚÀÂÊÔÃÕÇ])/g, "$1 $2")
+    .replace(/\bÉA\b/g, "É A")
+    .trim();
+}
+
+// garante que a contratação exibida esteja normalizada antes do hash
+function normalizarContratacaoResposta(contratacao: Contratacao): Contratacao {
+  return {
+    ...contratacao,
+    orgao: normalizarTextoExibicao(contratacao.orgao),
+    objeto: normalizarTextoExibicao(contratacao.objeto),
+    modalidade: contratacao.modalidade.trim(),
+    dataPublicacao: contratacao.dataPublicacao.trim(),
+    fonte: contratacao.fonte.trim(),
+  };
+}
+
+// seleciona exatamente os campos exibidos que entram no hash
+function prepararDadosParaHashDaResposta(contratacao: Contratacao) {
+  return {
+    fonte: contratacao.fonte,
+    identificador: contratacao.identificador,
+    orgao: contratacao.orgao,
+    objeto: contratacao.objeto,
+    valor: contratacao.valor,
+    modalidade: contratacao.modalidade,
+    dataPublicacao: contratacao.dataPublicacao,
+  };
+}
+
+// garante que o hash use os mesmos dados normalizados exibidos na resposta
+function prepararRespostaComHash(contratacao: Contratacao) {
+  const contratacaoNormalizada = normalizarContratacaoResposta(contratacao);
+  const dadosParaHash = prepararDadosParaHashDaResposta(contratacaoNormalizada);
+  const hashDados = gerarHash(dadosParaHash);
+
+  return {
+    contratacao: contratacaoNormalizada,
+    dadosParaHash,
+    hashDados,
+  };
+}
+
+// consulta a contratação no PNCP, normaliza os dados e gera o hash
 export async function consultarContratacaoPncp(
   request: Request,
-  response: Response
+  response: Response,
 ) {
   try {
     const identificador = obterIdentificadorConsulta(request);
@@ -42,14 +93,8 @@ export async function consultarContratacaoPncp(
     }
 
     const contratacao = await buscarContratacaoPncp(identificador);
-    const dadosParaHash = prepararDadosParaHash(contratacao);
-    const hashDados = gerarHash(dadosParaHash);
 
-    response.json({
-      contratacao,
-      dadosParaHash,
-      hashDados,
-    });
+    response.json(prepararRespostaComHash(contratacao));
   } catch (erro) {
     response.status(404).json({
       mensagem:
@@ -63,7 +108,7 @@ export async function consultarContratacaoPncp(
 /* gera hash para uma contratação já carregada pelo frontend */
 export async function gerarHashContratacao(
   request: Request,
-  response: Response
+  response: Response,
 ) {
   const contratacao = request.body as Contratacao;
 
@@ -82,12 +127,5 @@ export async function gerarHashContratacao(
     return;
   }
 
-  const dadosParaHash = prepararDadosParaHash(contratacao);
-  const hashDados = gerarHash(dadosParaHash);
-
-  response.json({
-    contratacao,
-    dadosParaHash,
-    hashDados,
-  });
+  response.json(prepararRespostaComHash(contratacao));
 }

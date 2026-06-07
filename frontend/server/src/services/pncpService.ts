@@ -1,17 +1,19 @@
 import type { Contratacao } from "../types";
+import type { RegistroPncp } from "./pncp/leitoresPncp";
 import { buscarContratacoesPublicacao } from "./pncp/pncpClient";
 import {
   lerIdentificadorPncp,
   mapearContratacaoPncp,
 } from "./pncp/mapearContratacaoPncp";
 import { criarContratacaoMock } from "./pncp/mockContratacaoPncp";
+import { buscarContratacoesRecentes } from "./sugestoesAuditoria/pncpSugestoesService";
 
 const CODIGOS_MODALIDADE_BUSCA = [8, 9];
-const DIAS_BUSCA_CONTRATACAO = 120;
-const TOTAL_PAGINAS_BUSCA = 5;
+const DIAS_BUSCA_CONTRATACAO = 60;
+const TOTAL_PAGINAS_BUSCA = 10;
 const TAMANHO_PAGINA_BUSCA = 50;
 
-// converte Date para o formato esperado pela API do PNCP: aaaammdd 
+// converte Date para o formato esperado pela API do PNCP: aaaammdd
 function formatarDataPncp(data: Date): string {
   const ano = data.getFullYear();
   const mes = String(data.getMonth() + 1).padStart(2, "0");
@@ -20,91 +22,143 @@ function formatarDataPncp(data: Date): string {
   return `${ano}${mes}${dia}`;
 }
 
-// identifica se o valor informado é um atalho interno usado apenas no MVP 
+// normaliza identificadores antes de comparar com o retorno do PNCP
+function normalizarIdentificador(identificador: string): string {
+  return identificador.trim();
+}
+
+// identifica se o valor informado é um atalho interno usado apenas no MVP
 function ehIdentificadorDemo(identificador: string): boolean {
   return identificador.startsWith("PNCP-");
 }
 
-// verifica se o item retornado pelo PNCP corresponde ao identificador buscado 
+// monta o intervalo de datas usado na consulta manual
+function montarPeriodoBusca(): { dataInicial: string; dataFinal: string } {
+  const hoje = new Date();
+  const dataInicial = new Date();
+
+  dataInicial.setDate(hoje.getDate() - DIAS_BUSCA_CONTRATACAO);
+
+  return {
+    dataInicial: formatarDataPncp(dataInicial),
+    dataFinal: formatarDataPncp(hoje),
+  };
+}
+
+// verifica se o item retornado pelo PNCP corresponde ao identificador buscado
 function identificadorCorresponde(
-  identificadorPncp: string | undefined,
-  identificadorBuscado: string
+  item: RegistroPncp,
+  identificadorBuscado: string,
 ): boolean {
+  const identificadorPncp = lerIdentificadorPncp(item);
+
   if (!identificadorPncp) {
     return false;
   }
 
-  return identificadorPncp === identificadorBuscado;
+  return normalizarIdentificador(identificadorPncp) === identificadorBuscado;
 }
 
-// busca a contratação em várias páginas da API do PNCP 
-async function buscarContratacaoEmModalidade(
-  identificador: string,
-  codigoModalidadeContratacao: number,
-  dataInicial: string,
-  dataFinal: string
+// tenta encontrar a contratação reaproveitando a mesma busca usada no carrossel
+async function buscarContratacaoNasSugestoesRecentes(
+  identificadorBuscado: string,
 ): Promise<Contratacao | null> {
-  for (let pagina = 1; pagina <= TOTAL_PAGINAS_BUSCA; pagina++) {
-    const registros = await buscarContratacoesPublicacao({
+  const contratacoesRecentes = await buscarContratacoesRecentes();
+
+  const encontrada = contratacoesRecentes.find((contratacao) => {
+    return (
+      normalizarIdentificador(contratacao.identificador) ===
+      identificadorBuscado
+    );
+  });
+
+  return encontrada || null;
+}
+
+// busca registros do PNCP em uma modalidade e página específicas
+async function buscarPaginaPncp(
+  codigoModalidadeContratacao: number,
+  pagina: number,
+  dataInicial: string,
+  dataFinal: string,
+): Promise<RegistroPncp[]> {
+  try {
+    return await buscarContratacoesPublicacao({
       dataInicial,
       dataFinal,
       codigoModalidadeContratacao,
       pagina,
       tamanhoPagina: TAMANHO_PAGINA_BUSCA,
     });
+  } catch {
+    console.warn(
+      `falha ao consultar PNCP na modalidade ${codigoModalidadeContratacao}, página ${pagina}`,
+    );
 
-    const encontrado = registros.find((item) => {
-      const identificadorPncp = lerIdentificadorPncp(item);
-
-      return identificadorCorresponde(identificadorPncp, identificador);
-    });
-
-    if (encontrado) {
-      return mapearContratacaoPncp(encontrado, identificador);
-    }
-
-    if (registros.length < TAMANHO_PAGINA_BUSCA) {
-      return null;
-    }
+    return [];
   }
-
-  return null;
 }
 
-// busca uma contratação no PNCP usando o identificador informado 
+// busca a contratação em várias páginas e modalidades da API do PNCP
+async function buscarRegistroPorIdentificador(
+  identificadorBuscado: string,
+): Promise<RegistroPncp | null> {
+  const { dataInicial, dataFinal } = montarPeriodoBusca();
+
+  const consultas = CODIGOS_MODALIDADE_BUSCA.flatMap(
+    (codigoModalidadeContratacao) => {
+      return Array.from({ length: TOTAL_PAGINAS_BUSCA }, (_, indice) => {
+        const pagina = indice + 1;
+
+        return buscarPaginaPncp(
+          codigoModalidadeContratacao,
+          pagina,
+          dataInicial,
+          dataFinal,
+        );
+      });
+    },
+  );
+
+  const listas = await Promise.all(consultas);
+  const registros = listas.flat();
+
+  const encontrado = registros.find((item) => {
+    return identificadorCorresponde(item, identificadorBuscado);
+  });
+
+  return encontrado || null;
+}
+
+// busca uma contratação no PNCP usando o identificador informado
 export async function buscarContratacaoPncp(
-  identificador: string
+  identificador: string,
 ): Promise<Contratacao> {
-  if (ehIdentificadorDemo(identificador)) {
-    return criarContratacaoMock(identificador);
+  const identificadorBuscado = normalizarIdentificador(identificador);
+
+  if (!identificadorBuscado) {
+    throw new Error("Identificador não informado.");
   }
 
-  try {
-    const hoje = new Date();
-    const dataInicial = new Date();
+  if (ehIdentificadorDemo(identificadorBuscado)) {
+    return criarContratacaoMock(identificadorBuscado);
+  }
 
-    dataInicial.setDate(hoje.getDate() - DIAS_BUSCA_CONTRATACAO);
+  const contratacaoDasSugestoes =
+    await buscarContratacaoNasSugestoesRecentes(identificadorBuscado);
 
-    const dataInicialFormatada = formatarDataPncp(dataInicial);
-    const dataFinalFormatada = formatarDataPncp(hoje);
+  if (contratacaoDasSugestoes) {
+    return contratacaoDasSugestoes;
+  }
 
-    for (const codigoModalidadeContratacao of CODIGOS_MODALIDADE_BUSCA) {
-      const contratacao = await buscarContratacaoEmModalidade(
-        identificador,
-        codigoModalidadeContratacao,
-        dataInicialFormatada,
-        dataFinalFormatada
-      );
+  const registroEncontrado =
+    await buscarRegistroPorIdentificador(identificadorBuscado);
 
-      if (contratacao) {
-        return contratacao;
-      }
-    }
-  } catch (erro) {
-    console.error("falha ao consultar PNCP", erro);
+  if (registroEncontrado) {
+    return mapearContratacaoPncp(registroEncontrado, identificadorBuscado);
   }
 
   throw new Error(
-    "Contratação não encontrada no PNCP. Tente selecionar outra sugestão ou consultar novamente."
+    "Contratação não encontrada no PNCP. Tente selecionar outra sugestão ou consultar novamente.",
   );
 }
