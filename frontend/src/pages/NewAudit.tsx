@@ -9,7 +9,11 @@ import {
   gerarHashDeContratacao,
 } from "../services/pncpService";
 import { salvarEvidencia } from "../services/evidenciasService";
-import { registrarHashOnChain } from "../services/Web3Service";
+import {
+  ehErroEvidenciaJaRegistrada,
+  registrarHashOnChain,
+  verificarEvidenciaJaRegistradaOnChain,
+} from "../services/Web3Service";
 import { ENDERECO_CONTRATO } from "../services/contracts";
 import { useWallet } from "../hooks/useWallet";
 import { PainelConsultaAuditoria } from "../components/novaAuditoria/PainelConsultaAuditoria";
@@ -100,6 +104,16 @@ export function NewAudit() {
         await conectarCarteira();
       }
 
+      const jaRegistradaOnChain =
+        await verificarEvidenciaJaRegistradaOnChain(contratacao.identificador);
+
+      if (jaRegistradaOnChain) {
+        alert(
+          "Esta evidência já está registrada na blockchain. Não é necessário registrar novamente.",
+        );
+        return;
+      }
+
       const hashTransacao = await registrarHashOnChain(
         contratacao.fonte,
         contratacao.identificador,
@@ -120,6 +134,13 @@ export function NewAudit() {
 
       navegar(`/evidencias/${evidencia.id}`);
     } catch (erro) {
+      if (ehErroEvidenciaJaRegistrada(erro)) {
+        alert(
+          "Esta evidência já está registrada na blockchain. Não é necessário registrar novamente.",
+        );
+        return;
+      }
+
       alert(
         erro instanceof Error ? erro.message : "Erro ao registrar evidência.",
       );
