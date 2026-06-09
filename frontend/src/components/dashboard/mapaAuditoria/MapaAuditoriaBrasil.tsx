@@ -1,7 +1,5 @@
 import type { Evidencia } from "../../../types/evidencia";
-import { FiltrosMapaAuditoria } from "./FiltrosMapaAuditoria";
-import { GradeUfsMapaAuditoria } from "./GradeUfsMapaAuditoria";
-import { PainelUfAuditoria } from "./PainelUfAuditoria";
+import { MapaRegistrosBlockchain } from "./mapaLeaflet/MapaRegistrosBlockchain";
 import { useMapaAuditoria } from "./useMapaAuditoria";
 
 type MapaAuditoriaBrasilProps = {
@@ -14,18 +12,6 @@ export function MapaAuditoriaBrasil({ evidencias }: MapaAuditoriaBrasilProps) {
     evidenciasOnChain,
     carregando,
     erro,
-    regiaoSelecionada,
-    ufSelecionada,
-    buscaUf,
-    contagemAlertasPorUf,
-    contagemRegistradasPorUf,
-    ufsExibidas,
-    alertasDaUf,
-    evidenciasDaUf,
-    setBuscaUf,
-    setUfSelecionada,
-    selecionarRegiao,
-    contarRegiao,
   } = useMapaAuditoria(evidencias);
 
   return (
@@ -37,12 +23,12 @@ export function MapaAuditoriaBrasil({ evidencias }: MapaAuditoriaBrasilProps) {
           </p>
 
           <h2 className="mt-1 font-display text-xl font-extrabold text-slate-950">
-            Mapa Brasil de Auditorias PNCP
+            Mapa de Registros On-chain
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Visualize por UF os alertas do PNCP e as evidências já registradas
-            na blockchain.
+            Visualize no mapa os contratos/evidências que já foram registrados
+            na blockchain. Cada ponto azul representa uma evidência on-chain.
           </p>
         </div>
 
@@ -69,39 +55,18 @@ export function MapaAuditoriaBrasil({ evidencias }: MapaAuditoriaBrasilProps) {
         </div>
       </div>
 
-      <FiltrosMapaAuditoria
-        regiaoSelecionada={regiaoSelecionada}
-        buscaUf={buscaUf}
-        onBuscaUfChange={setBuscaUf}
-        onSelecionarRegiao={selecionarRegiao}
-        contarRegiao={contarRegiao}
-      />
-
       {carregando ? (
         <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
-          Carregando mapa de auditoria...
+          Carregando mapa de registros on-chain...
         </div>
       ) : erro ? (
         <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
           {erro}
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <GradeUfsMapaAuditoria
-            ufsExibidas={ufsExibidas}
-            contagemAlertasPorUf={contagemAlertasPorUf}
-            contagemRegistradasPorUf={contagemRegistradasPorUf}
-            ufSelecionada={ufSelecionada}
-            onSelecionarUf={setUfSelecionada}
-          />
-
-          <PainelUfAuditoria
-            ufSelecionada={ufSelecionada}
-            alertasDaUf={alertasDaUf}
-            evidenciasDaUf={evidenciasDaUf}
-            evidenciasOnChain={evidenciasOnChain}
-          />
-        </div>
+        // Mapa real com os registros da blockchain desenhados como pontos clicáveis.
+        // Não usamos mais cards laterais fixos: os detalhes aparecem no popup do ponto.
+        <MapaRegistrosBlockchain evidenciasOnChain={evidenciasOnChain} />
       )}
     </section>
   );
