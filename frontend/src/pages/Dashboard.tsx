@@ -8,6 +8,7 @@ import { DashboardHero } from "../components/dashboard/DashboardHero";
 import { DashboardMetricas } from "../components/dashboard/DashboardMetricas";
 import { DashboardAtalhos } from "../components/dashboard/DashboardAtalhos";
 import { DashboardUltimasAuditorias } from "../components/dashboard/DashboardUltimasAuditorias";
+import { MapaAuditoriaBrasil } from "../components/dashboard/mapaAuditoria";
 
 type UsuarioBasico = {
   nome?: string;
@@ -51,6 +52,9 @@ export function Dashboard() {
         carteiraConectada={wallet.carteiraConectada}
         enderecoCarteira={wallet.enderecoCarteira}
       />
+
+      {/* exibe mapa da auditoria por UF */}
+      <MapaAuditoriaBrasil />
 
       {/* exibe atalhos de navegação */}
       <DashboardAtalhos />
