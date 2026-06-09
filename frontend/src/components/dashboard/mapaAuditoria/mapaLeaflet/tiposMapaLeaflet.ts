@@ -1,15 +1,24 @@
 import type { Evidencia } from "../../../../types/evidencia";
 
-// Coordenada no formato usado pelo Leaflet: [latitude, longitude]
+// Coordenada usada pelo Leaflet no formato [latitude, longitude]
 export type CoordenadaMapa = [number, number];
 
-// Representa um ponto que será desenhado no mapa para uma evidência on-chain
+// Registro que pode ser desenhado no mapa
 export type MarcadorBlockchain = {
   evidencia: Evidencia;
   uf: string;
   municipio: string;
   coordenada: CoordenadaMapa;
 
-  // true quando não temos latitude/longitude exata e usamos posição aproximada da UF
+  // true quando a coordenada veio de geocodificação pelo município/UF,
+  // e não de latitude/longitude salva diretamente na evidência.
   localizacaoAproximada: boolean;
+};
+
+// Registro on-chain que não será desenhado no mapa por falta de localização confiável
+export type RegistroSemLocalizacao = {
+  evidencia: Evidencia;
+  uf: string;
+  municipio: string;
+  motivo: string;
 };

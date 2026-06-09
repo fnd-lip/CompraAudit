@@ -41,7 +41,7 @@ export function PopupRegistroBlockchain({
 
         {marcador.localizacaoAproximada && (
           <p className="mt-1 text-xs font-semibold text-amber-600">
-            Localização aproximada pela UF.
+            Localização estimada pelo município/UF.
           </p>
         )}
       </div>

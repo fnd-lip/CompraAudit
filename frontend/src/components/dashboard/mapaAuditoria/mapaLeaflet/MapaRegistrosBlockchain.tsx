@@ -6,19 +6,24 @@ import { Popup } from "react-leaflet/Popup";
 import { TileLayer } from "react-leaflet/TileLayer";
 import type { Evidencia } from "../../../../types/evidencia";
 import { CENTRO_BRASIL } from "./constantesMapaLeaflet";
-import { montarMarcadoresBlockchain } from "./extratoresLocalizacaoMapa";
 import { PopupRegistroBlockchain } from "./PopupRegistroBlockchain";
+import { useMarcadoresBlockchain } from "./useMarcadoresBlockchain";
 
 type MapaRegistrosBlockchainProps = {
   evidenciasOnChain: Evidencia[];
 };
 
-// Componente principal do mapa real.
-// Ele não monta dados manualmente; apenas renderiza os marcadores já preparados.
+// Componente principal do mapa real
+// Os registros sem município/UF/coordenada confiável não são desenhados
+// evitando pontos aleatórios no mapa.
 export function MapaRegistrosBlockchain({
   evidenciasOnChain,
 }: MapaRegistrosBlockchainProps) {
-  const marcadores = montarMarcadoresBlockchain(evidenciasOnChain);
+  const {
+    marcadores,
+    registrosSemLocalizacao,
+    carregandoMarcadores,
+  } = useMarcadoresBlockchain(evidenciasOnChain);
 
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
@@ -36,11 +41,33 @@ export function MapaRegistrosBlockchain({
           Clique no ponto para ver município, contrato e hashes.
         </p>
 
-        <div className="mt-4 inline-flex rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2">
-          <span className="text-sm font-bold text-blue-950">
-            {evidenciasOnChain.length} registro(s) on-chain
-          </span>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <div className="inline-flex rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2">
+            <span className="text-sm font-bold text-blue-950">
+              {evidenciasOnChain.length} registro(s) on-chain
+            </span>
+          </div>
+
+          <div className="inline-flex rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2">
+            <span className="text-sm font-bold text-emerald-950">
+              {marcadores.length} ponto(s) no mapa
+            </span>
+          </div>
+
+          {registrosSemLocalizacao.length > 0 && (
+            <div className="inline-flex rounded-2xl border border-amber-100 bg-amber-50 px-4 py-2">
+              <span className="text-sm font-bold text-amber-900">
+                {registrosSemLocalizacao.length} sem localização confiável
+              </span>
+            </div>
+          )}
         </div>
+
+        {carregandoMarcadores && (
+          <p className="mt-3 text-sm font-semibold text-blue-600">
+            Localizando municípios dos registros on-chain...
+          </p>
+        )}
       </div>
 
       <div className="h-155 w-full">
@@ -58,7 +85,7 @@ export function MapaRegistrosBlockchain({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          {/* Cada evidência registrada on-chain vira um marcador clicável */}
+          {/* Só renderiza registros com localização confiável */}
           {marcadores.map((marcador, indice) => (
             <CircleMarker
               key={`${marcador.uf}-${marcador.municipio}-${indice}`}
