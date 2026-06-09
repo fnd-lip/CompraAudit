@@ -1,24 +1,32 @@
+import type { Evidencia } from "../../../types/evidencia";
 import { FiltrosMapaAuditoria } from "./FiltrosMapaAuditoria";
 import { GradeUfsMapaAuditoria } from "./GradeUfsMapaAuditoria";
 import { PainelUfAuditoria } from "./PainelUfAuditoria";
 import { useMapaAuditoria } from "./useMapaAuditoria";
 
-export function MapaAuditoriaBrasil() {
+type MapaAuditoriaBrasilProps = {
+  evidencias: Evidencia[];
+};
+
+export function MapaAuditoriaBrasil({ evidencias }: MapaAuditoriaBrasilProps) {
   const {
     sugestoes,
+    evidenciasOnChain,
     carregando,
     erro,
     regiaoSelecionada,
     ufSelecionada,
     buscaUf,
-    contagemPorUf,
+    contagemAlertasPorUf,
+    contagemRegistradasPorUf,
     ufsExibidas,
-    sugestoesDaUf,
+    alertasDaUf,
+    evidenciasDaUf,
     setBuscaUf,
     setUfSelecionada,
     selecionarRegiao,
     contarRegiao,
-  } = useMapaAuditoria();
+  } = useMapaAuditoria(evidencias);
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -33,18 +41,31 @@ export function MapaAuditoriaBrasil() {
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Visualize por UF as contratações diretas acima do limite de alerta e inspecione os itens de maior risco.
+            Visualize por UF os alertas do PNCP e as evidências já registradas
+            na blockchain.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-blue-500">
-            alertas ativos
-          </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-600">
+              alertas PNCP
+            </p>
 
-          <p className="text-2xl font-black text-blue-950">
-            {sugestoes.length}
-          </p>
+            <p className="text-2xl font-black text-amber-900">
+              {sugestoes.length}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-blue-600">
+              blockchain
+            </p>
+
+            <p className="text-2xl font-black text-blue-950">
+              {evidenciasOnChain.length}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -65,17 +86,19 @@ export function MapaAuditoriaBrasil() {
           {erro}
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
           <GradeUfsMapaAuditoria
             ufsExibidas={ufsExibidas}
-            contagemPorUf={contagemPorUf}
+            contagemAlertasPorUf={contagemAlertasPorUf}
+            contagemRegistradasPorUf={contagemRegistradasPorUf}
             ufSelecionada={ufSelecionada}
             onSelecionarUf={setUfSelecionada}
           />
 
           <PainelUfAuditoria
             ufSelecionada={ufSelecionada}
-            sugestoesDaUf={sugestoesDaUf}
+            alertasDaUf={alertasDaUf}
+            evidenciasDaUf={evidenciasDaUf}
           />
         </div>
       )}

@@ -54,7 +54,7 @@ export function Dashboard() {
       />
 
       {/* exibe mapa da auditoria por UF */}
-      <MapaAuditoriaBrasil />
+      <MapaAuditoriaBrasil evidencias={evidencias} />
 
       {/* exibe atalhos de navegação */}
       <DashboardAtalhos />

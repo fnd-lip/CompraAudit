@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Evidencia } from "../../../types/evidencia";
 import {
+  NOMES_UF,
   REGIAO_INICIAL,
   REGIOES,
   type RegiaoMapa,
@@ -8,9 +10,15 @@ import type {
   RespostaSugestoesMapa,
   SugestaoMapaAuditoria,
 } from "./tiposMapaAuditoria";
-import { obterUfDaSugestao } from "./utilsMapaAuditoria";
+import { normalizarTextoBusca } from "./utils/textoMapaAuditoria";
+import {
+  obterUfDaEvidencia,
+  obterUfDaSugestao,
+} from "./utils/ufMapaAuditoria";
+import { evidenciaEstaNaBlockchain } from "./utils/evidenciaMapaAuditoria";
 
-export function useMapaAuditoria() {
+// concentra os dados e os cálculos usados pelo mapa
+export function useMapaAuditoria(evidencias: Evidencia[]) {
   const [sugestoes, setSugestoes] = useState<SugestaoMapaAuditoria[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
@@ -29,12 +37,12 @@ export function useMapaAuditoria() {
         );
 
         if (!resposta.ok) {
-          throw new Error("Não foi possível carregar o mapa de auditoria.");
+          throw new Error("Não foi possível carregar os alertas PNCP.");
         }
 
         const dados = (await resposta.json()) as RespostaSugestoesMapa;
 
-        setSugestoes(dados.sugestoes);
+        setSugestoes(dados.sugestoes || []);
       } catch (erroCapturado) {
         setErro(
           erroCapturado instanceof Error
@@ -49,7 +57,8 @@ export function useMapaAuditoria() {
     carregarSugestoes();
   }, []);
 
-  const contagemPorUf = useMemo(() => {
+  // conta alertas PNCP por UF
+  const contagemAlertasPorUf = useMemo(() => {
     const contagem = new Map<string, number>();
 
     for (const sugestao of sugestoes) {
@@ -65,19 +74,47 @@ export function useMapaAuditoria() {
     return contagem;
   }, [sugestoes]);
 
+  // filtra evidências que já possuem prova on-chain
+  const evidenciasOnChain = useMemo(() => {
+    return evidencias.filter((evidencia) =>
+      evidenciaEstaNaBlockchain(evidencia),
+    );
+  }, [evidencias]);
+
+  // conta evidências registradas na blockchain por UF
+  const contagemRegistradasPorUf = useMemo(() => {
+    const contagem = new Map<string, number>();
+
+    for (const evidencia of evidenciasOnChain) {
+      const uf = obterUfDaEvidencia(evidencia);
+
+      if (uf === "NI") {
+        continue;
+      }
+
+      contagem.set(uf, (contagem.get(uf) || 0) + 1);
+    }
+
+    return contagem;
+  }, [evidenciasOnChain]);
+
+  // aplica filtro por região e busca textual
   const ufsExibidas = useMemo(() => {
-    const termo = buscaUf.trim().toUpperCase();
+    const termo = normalizarTextoBusca(buscaUf);
 
     return REGIOES[regiaoSelecionada].filter((uf) => {
       if (!termo) {
         return true;
       }
 
-      return uf.includes(termo);
+      return (
+        normalizarTextoBusca(uf).includes(termo) ||
+        normalizarTextoBusca(NOMES_UF[uf]).includes(termo)
+      );
     });
   }, [buscaUf, regiaoSelecionada]);
 
-  const sugestoesDaUf = useMemo(() => {
+  const alertasDaUf = useMemo(() => {
     if (!ufSelecionada) {
       return [];
     }
@@ -87,9 +124,23 @@ export function useMapaAuditoria() {
     });
   }, [sugestoes, ufSelecionada]);
 
+  const evidenciasDaUf = useMemo(() => {
+    if (!ufSelecionada) {
+      return [];
+    }
+
+    return evidenciasOnChain.filter((evidencia) => {
+      return obterUfDaEvidencia(evidencia) === ufSelecionada;
+    });
+  }, [evidenciasOnChain, ufSelecionada]);
+
   function contarRegiao(regiao: RegiaoMapa): number {
     return REGIOES[regiao].reduce((total, uf) => {
-      return total + (contagemPorUf.get(uf) || 0);
+      return (
+        total +
+        (contagemAlertasPorUf.get(uf) || 0) +
+        (contagemRegistradasPorUf.get(uf) || 0)
+      );
     }, 0);
   }
 
@@ -100,14 +151,17 @@ export function useMapaAuditoria() {
 
   return {
     sugestoes,
+    evidenciasOnChain,
     carregando,
     erro,
     regiaoSelecionada,
     ufSelecionada,
     buscaUf,
-    contagemPorUf,
+    contagemAlertasPorUf,
+    contagemRegistradasPorUf,
     ufsExibidas,
-    sugestoesDaUf,
+    alertasDaUf,
+    evidenciasDaUf,
     setBuscaUf,
     setUfSelecionada,
     selecionarRegiao,

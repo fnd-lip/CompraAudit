@@ -1,3 +1,4 @@
+// regiões usadas para filtrar visualmente o mapa no dashboard
 export const REGIOES = {
   Nacional: [
     "AC",
@@ -39,6 +40,7 @@ export type RegiaoMapa = keyof typeof REGIOES;
 
 export const REGIAO_INICIAL: RegiaoMapa = "Nacional";
 
+// nomes usados no mapa, nos filtros e no painel lateral
 export const NOMES_UF: Record<string, string> = {
   AC: "Acre",
   AL: "Alagoas",

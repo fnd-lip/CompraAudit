@@ -17,6 +17,7 @@ export function FiltrosMapaAuditoria({
 }: FiltrosMapaAuditoriaProps) {
   return (
     <>
+      {/* filtros por região */}
       <div className="mb-5 flex flex-wrap gap-2">
         {(Object.keys(REGIOES) as RegiaoMapa[]).map((regiao) => {
           const selecionada = regiao === regiaoSelecionada;
@@ -41,6 +42,7 @@ export function FiltrosMapaAuditoria({
         })}
       </div>
 
+      {/* busca e legenda do mapa */}
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <input
           value={buscaUf}
@@ -51,18 +53,23 @@ export function FiltrosMapaAuditoria({
 
         <div className="flex flex-wrap gap-3 text-xs text-slate-500">
           <span className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-emerald-400" />
-            Auditoria pendente
+            <span className="h-3 w-3 rounded-full bg-amber-400" />
+            Alerta PNCP
           </span>
 
           <span className="inline-flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-amber-400" />
-            Divergência crítica
+            <span className="h-3 w-3 rounded-full bg-blue-500" />
+            Registrada na blockchain
+          </span>
+
+          <span className="inline-flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full bg-emerald-500" />
+            Ambos
           </span>
 
           <span className="inline-flex items-center gap-2">
             <span className="h-3 w-3 rounded-full border border-slate-300 bg-white" />
-            Sem alertas
+            Sem dados
           </span>
         </div>
       </div>
