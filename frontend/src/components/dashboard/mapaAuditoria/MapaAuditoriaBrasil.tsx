@@ -99,6 +99,7 @@ export function MapaAuditoriaBrasil({ evidencias }: MapaAuditoriaBrasilProps) {
             ufSelecionada={ufSelecionada}
             alertasDaUf={alertasDaUf}
             evidenciasDaUf={evidenciasDaUf}
+            evidenciasOnChain={evidenciasOnChain}
           />
         </div>
       )}
